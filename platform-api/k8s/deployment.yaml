@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: platform-api
+  namespace: platform-dev
+  labels:
+    app: platform-api
+    environment: dev
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: platform-api
+  template:
+    metadata:
+      labels:
+        app: platform-api
+        environment: dev
+    spec:
+      containers:
+      - name: platform-api
+        image: node:20-alpine
+        command: ["node", "src/index.js"]
+        workingDir: /app
+        ports:
+        - containerPort: 3000
+        env:
+        - name: PGHOST
+          value: "postgresql.platform-dev.svc.cluster.local"
+        - name: PGPASSWORD
+          value: "plat0form-dev-2026!"
+        - name: PGDATABASE
+          value: "platform"
+        - name: PGUSER
+          value: "platform-admin"
+        - name: JWT_SECRET
+          value: "platform-dev-secret-change-in-prod"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: platform-api
+  namespace: platform-dev
+spec:
+  selector:
+    app: platform-api
+  ports:
+  - port: 80
+    targetPort: 3000
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: platform-api-ingress
+  namespace: platform-dev
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: api.platform-dev.idp.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: platform-api
+            port:
+              number: 80
