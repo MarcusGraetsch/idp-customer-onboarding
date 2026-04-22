@@ -7,7 +7,7 @@ metadata:
     app: platform-api
     environment: dev
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: platform-api
@@ -20,7 +20,8 @@ spec:
       containers:
       - name: platform-api
         image: node:20-alpine
-        command: ["node", "src/index.js"]
+        command: ["node"]
+        args: ["/app/src/index.js"]
         workingDir: /app
         ports:
         - containerPort: 3000
@@ -35,6 +36,8 @@ spec:
           value: "platform-admin"
         - name: JWT_SECRET
           value: "platform-dev-secret-change-in-prod"
+        - name: PGPORT
+          value: "5432"
         resources:
           requests:
             cpu: 100m
