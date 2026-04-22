@@ -3,9 +3,6 @@ kind: Deployment
 metadata:
   name: platform-api
   namespace: platform-dev
-  labels:
-    app: platform-api
-    environment: dev
 spec:
   replicas: 1
   selector:
@@ -15,36 +12,26 @@ spec:
     metadata:
       labels:
         app: platform-api
-        environment: dev
     spec:
       containers:
       - name: platform-api
-        image: node:20-alpine
-        command: ["node"]
-        args: ["/app/src/index.js"]
-        workingDir: /app
+        image: ghcr.io/marcusgraetsch/platform-api:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 3000
         env:
         - name: PGHOST
           value: "postgresql.platform-dev.svc.cluster.local"
-        - name: PGPASSWORD
-          value: "plat0form-dev-2026!"
+        - name: PGPORT
+          value: "5432"
         - name: PGDATABASE
           value: "platform"
         - name: PGUSER
           value: "platform-admin"
+        - name: PGPASSWORD
+          value: "plat0form-dev-2026!"
         - name: JWT_SECRET
           value: "platform-dev-secret-change-in-prod"
-        - name: PGPORT
-          value: "5432"
-        resources:
-          requests:
-            cpu: 100m
-            memory: 128Mi
-          limits:
-            cpu: 500m
-            memory: 512Mi
         livenessProbe:
           httpGet:
             path: /health
@@ -69,7 +56,7 @@ spec:
   ports:
   - port: 80
     targetPort: 3000
-  type: ClusterIP
+  type: NodePort
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
