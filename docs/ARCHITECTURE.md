@@ -365,16 +365,23 @@ PUT    /api/approvals/:id       → Approval (approve/reject)
 
 ### Architecture
 - [x] POC-Architektur finalisieren
-- [ ] Dev/Prod-Trennung finalisieren
-- [ ] CI/CD Pipeline designen
-- [ ] Maintainer-Workflow (Tickets, Approvals) designen
+- [x] Dev/Prod-Trennung finalisieren
+- [x] CI/CD Pipeline designen
+- [x] Maintainer-Workflow (Tickets, Approvals) designen
 
 ### Core Infrastructure
 - [ ] Next.js UI scaffold
-- [ ] Node.js API-Server scaffold
-- [ ] PostgreSQL installieren (dev + prod)
+- [x] Node.js API-Server scaffold (`platform-api/`)
+- [x] PostgreSQL installieren (dev) — `platform-dev` namespace, Schema `platform`
 - [ ] Keycloak-Integration (Rollen für internal/external)
 - [ ] GitHub Actions Workflows
+
+### Core Infrastructure (Implemented)
+- [x] PostgreSQL 16 in `platform-dev` (bitnami helm, 1Gi PVC)
+- [x] Schema: `platform.clusters`, `platform.tickets`, `platform.approvals`
+- [x] API-Server: `platform-api/` — Fastify, Node.js 20, Cluster/Ticket/Approval endpoints
+- [x] K8s Manifest: `platform-api/k8s/deployment.yaml` (Deployment + Service + Ingress)
+- [x] GitHub: `platform-api/` committed
 
 ### Cluster Management
 - [ ] Cluster-Templates Repo erstellen
