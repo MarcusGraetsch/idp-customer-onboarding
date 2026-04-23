@@ -1,0 +1,343 @@
+openapi: 3.0.3
+info:
+  title: IDP Platform API
+  description: |
+    Agent-Native Internal Developer Platform API.
+    
+    Diese API ermöglicht:
+    - **Menschen**: Über das Portal (Next.js) oder direkt via HTTP
+    - **Agenten**: Via REST API mit API Keys oder JWT Tokens
+    
+    Alle mutierenden Operationen werden im Audit Log gespeichert.
+  version: 0.1.0
+  contact:
+    name: Marcus Grätsch
+    email: marcusgraetsch@gmail.com
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Lokale Entwicklung
+  - url: https://api.idp.platform.example.com/api/v1
+    description: Production
+
+security:
+  - BearerAuth: []
+  - ApiKeyAuth: []
+
+paths:
+  /health:
+    get:
+      summary: Einfacher Health Check
+      description: Für Load Balancer. Gibt nur Status zurück.
+      security: [] # Kein Auth nötig
+      responses:
+        '200':
+          description: Server läuft
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /ready:
+    get:
+      summary: Readiness Check
+      description: Prüft ob alle Abhängigkeiten bereit sind (DB, K8s).
+      security: [] # Kein Auth nötig
+      responses:
+        '200':
+          description: Alle Systeme bereit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+        '503':
+          description: Ein oder mehrere Systeme nicht bereit
+
+  /live:
+    get:
+      summary: Liveness Check
+      description: Prüft ob der Server lebt. Einfacher Check.
+      security: [] # Kein Auth nötig
+      responses:
+        '200':
+          description: Server lebt
+
+  /tenants:
+    get:
+      summary: Alle Tenants listen
+      description: |
+        Gibt eine Liste aller Tenants zurück.
+        
+        **RBAC:**
+        - `platform_admin`: Sieht alle Tenants
+        - `tenant_admin`: Sieht nur eigene Tenants
+        - `user`: Sieht nur eigene Tenants
+      tags:
+        - Tenants
+      responses:
+        '200':
+          description: Liste der Tenants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TenantResponse'
+        '401':
+          description: Nicht authentifiziert
+        '403':
+          description: Keine Berechtigung
+
+    post:
+      summary: Neuen Tenant erstellen
+      description: |
+        Erstellt einen neuen Tenant mit:
+        - PostgreSQL Eintrag
+        - Kubernetes Namespace
+        - Default Quotas
+        
+        **RBAC:**
+        - `platform_admin`: Kann beliebige Tenants erstellen
+        - `tenant_admin`: Kann eigene Tenants erstellen
+        
+        **Audit:** Wird automatisch geloggt.
+      tags:
+        - Tenants
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTenantRequest'
+            examples:
+              standard:
+                summary: Standard Tenant
+                value:
+                  name: "mueller-gmbh"
+                  display_name: "Müller GmbH"
+                  owner_email: "mueller@example.com"
+                  tier: "standard"
+              premium:
+                summary: Premium Tenant
+                value:
+                  name: "tech-startup"
+                  display_name: "Tech Startup AG"
+                  owner_email: "admin@tech-startup.com"
+                  tier: "premium"
+                  quota_cpu: "50"
+                  quota_memory: "100Gi"
+      responses:
+        '201':
+          description: Tenant erstellt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantResponse'
+        '400':
+          description: Ungültige Eingabe
+        '401':
+          description: Nicht authentifiziert
+        '403':
+          description: Keine Berechtigung
+        '409':
+          description: Tenant Name bereits vergeben
+
+  /tenants/{id}:
+    get:
+      summary: Einzelnen Tenant abrufen
+      description: Gibt Details zu einem Tenant zurück.
+      tags:
+        - Tenants
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+      responses:
+        '200':
+          description: Tenant Details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantResponse'
+        '404':
+          description: Tenant nicht gefunden
+
+    delete:
+      summary: Tenant löschen (Soft Delete)
+      description: |
+        Setzt `deleted_at` Timestamp. Der Tenant wird nicht physisch gelöscht.
+        
+        **RBAC:**
+        - `platform_admin`: Kann alle Tenants löschen
+        - `tenant_admin`: Kann nur eigene Tenants löschen
+        
+        **Audit:** Wird automatisch geloggt.
+      tags:
+        - Tenants
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Tenant gelöscht
+        '404':
+          description: Tenant nicht gefunden
+        '403':
+          description: Keine Berechtigung zum Löschen
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "ok"
+
+    ReadinessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+          example: "healthy"
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+          example: "0.1.0"
+        checks:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              status:
+                type: string
+                enum: [healthy, unhealthy, degraded]
+              message:
+                type: string
+          example:
+            database:
+              status: "healthy"
+            kubernetes:
+              status: "degraded"
+              message: "Kubernetes Client nicht verfügbar"
+
+    TenantResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          description: DNS-kompatibler Name
+          example: "mueller-gmbh"
+        display_name:
+          type: string
+          example: "Müller GmbH"
+        status:
+          type: string
+          enum: [active, suspended, deleted]
+          example: "active"
+        namespace:
+          type: string
+          description: Kubernetes Namespace
+          example: "tenant-mueller-gmbh"
+        created_at:
+          type: string
+          format: date-time
+
+    CreateTenantRequest:
+      type: object
+      required:
+        - name
+        - owner_email
+      properties:
+        name:
+          type: string
+          description: DNS-kompatibel (nur Kleinbuchstaben, Zahlen, Bindestriche)
+          minLength: 3
+          maxLength: 63
+          pattern: '^[a-z0-9-]+$'
+          example: "mueller-gmbh"
+        display_name:
+          type: string
+          description: Menschenlesbarer Name
+          example: "Müller GmbH"
+        owner_email:
+          type: string
+          format: email
+          example: "mueller@example.com"
+        tier:
+          type: string
+          enum: [free, standard, premium]
+          default: "standard"
+          example: "standard"
+        quota_cpu:
+          type: string
+          default: "10"
+          example: "20"
+        quota_memory:
+          type: string
+          default: "20Gi"
+          example: "40Gi"
+        quota_storage:
+          type: string
+          default: "100Gi"
+          example: "200Gi"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Tenant nicht gefunden"
+        code:
+          type: integer
+          example: 404
+        details:
+          type: string
+          description: Technische Details (nur im Development Mode)
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT Token von Keycloak.
+        
+        Header: `Authorization: Bearer <token>`
+        
+        Token enthält:
+        - `sub`: User ID
+        - `email`: User Email
+        - `realm_access.roles`: Rollen des Users
+
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        API Key für Agenten.
+        
+        Header: `X-API-Key: <api-key>`
+        
+        API Keys werden im Portal generiert und haben scoped Berechtigungen.
+
+tags:
+  - name: Tenants
+    description: Tenant Management (Kunden/Projekte)
+  - name: System
+    description: Health Checks und System-Status

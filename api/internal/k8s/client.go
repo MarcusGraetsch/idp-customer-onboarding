@@ -67,3 +67,12 @@ func (c *Client) NamespaceExists(ctx context.Context, name string) (bool, error)
 	}
 	return true, nil
 }
+
+// Ping prüft die Verbindung zum Kubernetes API Server
+func (c *Client) Ping(ctx context.Context) error {
+	_, err := c.clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{Limit: 1})
+	if err != nil {
+		return fmt.Errorf("kubernetes ping fehlgeschlagen: %w", err)
+	}
+	return nil
+}
