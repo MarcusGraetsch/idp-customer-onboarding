@@ -2,10 +2,7 @@ package middleware
 
 import (
 	"crypto/rsa"
-	"crypto/x509"
 	"encoding/base64"
-	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"math/big"
 	"strings"
@@ -208,11 +205,9 @@ func (a *AuthMiddleware) fetchKeys() error {
 		return nil
 	}
 
-	url := fmt.Sprintf("%s/realms/%s/protocol/openid-connect/certs", a.keycloakURL, a.realm)
-
-	// In einer echten Implementierung: HTTP GET
+	// url := fmt.Sprintf("%s/realms/%s/protocol/openid-connect/certs", a.keycloakURL, a.realm)
+	// TODO: HTTP Client für JWKS Fetching implementieren
 	// Für MVP: statische Keys oder manuelles Fetching
-	// TODO: HTTP Client für JWKS Fetching
 
 	a.lastFetch = time.Now()
 	return nil
