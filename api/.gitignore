@@ -1,0 +1,47 @@
+# Binaries
+*.exe
+*.dll
+*.so
+*.dylib
+main
+idp-platform
+
+# Test binary
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go workspace file
+go.work
+
+# Dependency directories
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+
+# Build artifacts
+dist/
+build/
+
+# Node modules (für Frontend)
+node_modules/
+
+# PostgreSQL data (für lokale Entwicklung)
+postgres-data/
