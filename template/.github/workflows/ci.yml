@@ -1,0 +1,154 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  # IMAGE_NAME wird pro Kundennamespace unterschiedlich sein
+  # Für Template nutzen wir einen generischen Namen
+  IMAGE_NAME: ${{ github.event.repository.name }}
+  NODE_VERSION: '20'
+
+jobs:
+  # Job 1: Bauen und Scannen
+  build-and-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}
+          tags: |
+            type=sha,prefix=,suffix=,format=short
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/example-app
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Trivy Security Scan
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ github.repository }}:${{ github.sha }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH,MEDIUM
+
+      - name: Upload Trivy results to Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run Trivy scanner for full report
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ github.repository }}:${{ github.sha }}
+          format: json
+          output: trivy-report.json
+          severity: CRITICAL,HIGH,MEDIUM
+
+      - name: Upload Trivy report as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: trivy-report.json
+          retention-days: 30
+
+      # Bei CRITICAL Vulns: Build failen
+      - name: Check for critical vulnerabilities
+        run: |
+          CRITICAL=$(cat trivy-report.json | jq '.Results[] | select(.Vulnerabilities != null) | .Vulnerabilities[] | select(.Severity == "CRITICAL") | .VulnerabilityID' | wc -l)
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "❌ Build blocked: $CRITICAL CRITICAL vulnerabilities found"
+            echo "Critical CVEs found:"
+            cat trivy-report.json | jq -r '.Results[] | select(.Vulnerabilities != null) | .Vulnerabilities[] | select(.Severity == "CRITICAL") | .VulnerabilityID'
+            exit 1
+          fi
+          echo "✅ No critical vulnerabilities found"
+
+  # Job 2: Flux Deployment Trigger
+  deploy:
+    needs: build-and-scan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update kustomization image tag
+        run: |
+          # Image Tag auf neuen SHA setzen
+          sed -i 's|newTag: ".*"|newTag: "'"${{ github.sha }}"'"|g' apps/example-app/kustomization.yaml
+
+      - name: Create commit
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add apps/example-app/kustomization.yaml
+          git diff --staged || echo "No changes to commit"
+          git commit -m "chore: Update image to ${{ github.sha }}" || echo "Nothing to commit"
+          git push || echo "Push skipped (no changes)"
+
+  # Job 3: Policy Check mit OPA Gatekeeper
+  policy-check:
+    needs: build-and-scan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Kubernetes manifests
+        run: |
+          echo "Checking YAML manifests for security compliance..."
+
+          # Prüfe ob alle Deployments Security Context setzen
+          for f in $(find . -name "deployment.yaml"); do
+            echo "Checking: $f"
+            if ! grep -q "runAsNonRoot" "$f"; then
+              echo "❌ $f: missing runAsNonRoot"
+              exit 1
+            fi
+            if ! grep -q "readOnlyRootFilesystem" "$f"; then
+              echo "❌ $f: missing readOnlyRootFilesystem"
+              exit 1
+            fi
+            if ! grep -q "allowPrivilegeEscalation: false" "$f"; then
+              echo "❌ $f: missing allowPrivilegeEscalation"
+              exit 1
+            fi
+          done
+
+          echo "✅ All manifests passed security checks"
