@@ -296,10 +296,11 @@ Retry → Pipeline läuft weiter
 
 ### CI/CD
 
-- [ ] **Customer Template Pipeline**
-  - GitHub Actions Template für Kunden
-  - Trivy Scan integriert
-  - Automatischer Deployment Trigger
+- [x] **GitHub Actions Workflow** — `template/.github/workflows/ci.yml` ✅
+  - Build + Push nach GHCR
+  - Trivy Scan (SARIF + JSON)
+  - Policy Check für Security Contexts
+  - Automatischer Image-Tag Update für Flux
 
 - [ ] **Multi-Stage Pipeline**
   - Dev → Staging → Production
