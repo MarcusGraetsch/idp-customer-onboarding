@@ -208,11 +208,7 @@ Retry → Pipeline läuft weiter
 
 ### Phase 1: Customer Self-Service (Sofort)
 
-- [ ] **Repo-Template erstellen** — Ein Repo-Template das Kunden bekommen
-  - Ordnerstruktur für App + Infra
-  - Beispiel Dockerfile
-  - Beispiel Helm Chart
-  - Beispiel kustomization.yaml
+- [x] ~~**Repo-Template erstellen**~~ — Repo-Template in `template/` erstellt ✅
 
 - [ ] **Onboarding-Dokument** — Schritt-für-Schritt für Kunden
   - Wie cloned man das Repo?
