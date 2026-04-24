@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: beispiel-service
+  namespace: kunde-beispiel
+  labels:
+    app.kubernetes.io/name: beispiel
+    app.kubernetes.io/instance: beispiel-prod
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: beispiel
+    app.kubernetes.io/instance: beispiel-prod

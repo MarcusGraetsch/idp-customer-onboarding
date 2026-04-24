@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: kunde-beispiel
+
+commonLabels:
+  app.kubernetes.io/name: beispiel
+  app.kubernetes.io/instance: beispiel-prod
+  app.kubernetes.io/part-of: kunde-beispiel
+  app.kubernetes.io/managed-by: kustomize
+
+resources:
+  - deployment.yaml
+  - service.yaml
+
+# Images für Flux Auto-Sync
+images:
+  - name: ghcr.io/<org>/beispiel
+    newTag: "1.0.0"  # Wird bei jedem Git Push aktualisiert

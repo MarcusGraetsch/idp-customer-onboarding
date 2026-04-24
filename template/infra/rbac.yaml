@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kunde-beispiel-app
+  namespace: kunde-beispiel
+  annotations:
+    # Explizit KEINE automount vom default SA
+    kubernetes.io/enable-mounting-rotor: "false"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kunde-beispiel-developer
+  namespace: kunde-beispiel
+rules:
+  #Developer dürfen nur ihre eigene App lesen
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kunde-beispiel-developer-binding
+  namespace: kunde-beispiel
+subjects:
+  - kind: User
+    name: developer@kunde.example.com
+    apiGroup: rbac.authorization.k8s.io
+  - kind: Group
+    name: kunde-beispiel-developers
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: kunde-beispiel-developer
+  apiGroup: rbac.authorization.k8s.io

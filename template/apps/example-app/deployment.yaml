@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: beispiel-deployment
+  namespace: kunde-beispiel
+  labels:
+    app.kubernetes.io/name: beispiel
+    app.kubernetes.io/instance: beispiel-prod
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/part-of: kunde-beispiel
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: beispiel
+      app.kubernetes.io/instance: beispiel-prod
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: beispiel
+        app.kubernetes.io/instance: beispiel-prod
+        app.kubernetes.io/version: "1.0.0"
+    spec:
+      # Security Context — Leitplanken erfordert diese Einstellungen
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+        # Seccomp Profile
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: beispiel
+          image: ghcr.io/<org>/beispiel:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+
+          # Security Context — Leitplanken erfordert diese Einstellungen
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+
+          # Resource Limits — Leitplanken erfordert Limits
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+          # Liveness und Readiness Probes
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          # Volume Mounts
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+
+      # Volumes
+      volumes:
+        - name: tmp
+          emptyDir: {}

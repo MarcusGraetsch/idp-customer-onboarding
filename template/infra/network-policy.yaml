@@ -1,0 +1,51 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kunde-beispiel-network-policy
+  namespace: kunde-beispiel
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Ingress von Platform Services erlauben (Ingress Controller, etc.)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 443
+    # Prometheus Monitoring erlauben
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9090
+  egress:
+    # Erlaubte Egress Ziele
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 53  # DNS
+        - protocol: UDP
+          port: 53  # DNS
+    # Externe APIs (anpassen nach Bedarf)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8    # Internes Netz
+              - 172.16.0.0/12 # Internes Netz
+              - 192.168.0.0/16 # Internes Netz
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
