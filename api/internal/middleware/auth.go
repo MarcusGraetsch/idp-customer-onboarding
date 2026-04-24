@@ -3,8 +3,11 @@ package middleware
 import (
 	"crypto/rsa"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"io"
 	"math/big"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -35,6 +38,7 @@ type AuthMiddleware struct {
 	publicKeys    map[string]*rsa.PublicKey
 	mu            sync.RWMutex
 	lastFetch     time.Time
+	httpClient    *http.Client
 }
 
 // NewAuthMiddleware erstellt eine neue Auth Middleware
@@ -44,6 +48,9 @@ func NewAuthMiddleware(keycloakURL, realm, clientID string) *AuthMiddleware {
 		realm:       realm,
 		clientID:    clientID,
 		publicKeys:  make(map[string]*rsa.PublicKey),
+		httpClient: &http.Client{
+			Timeout: 10 * time.Second,
+		},
 	}
 }
 
@@ -125,6 +132,7 @@ func (a *AuthMiddleware) Middleware() fiber.Handler {
 		sub, _ := claims["sub"].(string)
 		email, _ := claims["email"].(string)
 		name, _ := claims["name"].(string)
+		preferredUsername, _ := claims["preferred_username"].(string)
 
 		// Roles aus Realm Access extrahieren
 		var roles []string
@@ -142,6 +150,7 @@ func (a *AuthMiddleware) Middleware() fiber.Handler {
 		c.Locals("user_id", sub)
 		c.Locals("user_email", email)
 		c.Locals("user_name", name)
+		c.Locals("user_username", preferredUsername)
 		c.Locals("roles", roles)
 		c.Locals("token", token)
 
@@ -201,13 +210,42 @@ func (a *AuthMiddleware) getPublicKey(kid string) (*rsa.PublicKey, error) {
 // fetchKeys lädt die JWKS von Keycloak
 func (a *AuthMiddleware) fetchKeys() error {
 	// Nur alle 5 Minuten neu laden
-	if time.Since(a.lastFetch) < 5*time.Minute {
+	if time.Since(a.lastFetch) < 5*time.Minute && len(a.publicKeys) > 0 {
 		return nil
 	}
 
-	// url := fmt.Sprintf("%s/realms/%s/protocol/openid-connect/certs", a.keycloakURL, a.realm)
-	// TODO: HTTP Client für JWKS Fetching implementieren
-	// Für MVP: statische Keys oder manuelles Fetching
+	url := fmt.Sprintf("%s/realms/%s/protocol/openid-connect/certs", a.keycloakURL, a.realm)
+
+	resp, err := a.httpClient.Get(url)
+	if err != nil {
+		return fmt.Errorf("jwks laden fehlgeschlagen: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("jwks endpoint fehler: %d - %s", resp.StatusCode, string(body))
+	}
+
+	var jwks JWKS
+	if err := json.NewDecoder(resp.Body).Decode(&jwks); err != nil {
+		return fmt.Errorf("jwks decode fehlgeschlagen: %w", err)
+	}
+
+	// Keys parsen und speichern
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	for _, jwk := range jwks.Keys {
+		if jwk.Kty != "RSA" {
+			continue
+		}
+		key, err := parseJWK(jwk)
+		if err != nil {
+			continue // Skip invalid keys
+		}
+		a.publicKeys[jwk.Kid] = key
+	}
 
 	a.lastFetch = time.Now()
 	return nil
