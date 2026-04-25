@@ -1,37 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect } from 'react'
 import { useAuth } from '@/components/auth-provider'
 import { Navigation } from '@/components/navigation'
 import Link from 'next/link'
-import { LogIn, Shield } from 'lucide-react'
+import { LogIn, Shield, Loader2 } from 'lucide-react'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const { login } = useAuth()
+  const { login, isAuthenticated, isLoading } = useAuth()
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-
-    // Für MVP: Simulierter Login
-    // In Produktion: Keycloak OAuth2 Flow
-    if (email && password) {
-      // Mock Token erstellen
-      const mockToken = btoa(JSON.stringify({
-        sub: 'user-123',
-        email: email,
-        name: 'Test User',
-        realm_access: { roles: ['tenant_admin'] }
-      }))
-      const token = `header.${mockToken}.signature`
-      localStorage.setItem('idp_token', token)
+  // Wenn bereits eingeloggt → Dashboard
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
       window.location.href = '/dashboard'
-    } else {
-      setError('Email und Passwort erforderlich')
     }
+  }, [isLoading, isAuthenticated])
+
+  const handleKeycloakLogin = () => {
+    login()
   }
 
   return (
@@ -62,51 +48,14 @@ export default function LoginPage() {
               </div>
             )}
             
-            <form className="space-y-6" onSubmit={handleSubmit}>
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                  Email
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-primary-500 sm:text-sm"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  Passwort
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-primary-500 sm:text-sm"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <button
-                  type="submit"
-                  className="flex w-full justify-center rounded-md border border-transparent bg-primary-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-                >
-                  <LogIn className="h-4 w-4 mr-2 mt-0.5" />
-                  Anmelden
-                </button>
-              </div>
-            </form>
+            <button
+              type="button"
+              onClick={handleKeycloakLogin}
+              className="flex w-full justify-center rounded-md border border-transparent bg-primary-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+            >
+              <LogIn className="h-4 w-4 mr-2 mt-0.5" />
+              Mit Keycloak anmelden
+            </button>
 
             <div className="mt-6">
               <div className="relative">
@@ -121,8 +70,8 @@ export default function LoginPage() {
               </div>
 
               <div className="mt-6 text-center text-sm text-gray-500">
-                <p>Beliebige Email / Passwort akzeptiert (MVP)</p>
-                <p className="mt-1">In Produktion: Keycloak SSO</p>
+                <p>SSO Login via Keycloak</p>
+                <p className="mt-1">Demo Account: demo / demo123</p>
               </div>
             </div>
           </div>
