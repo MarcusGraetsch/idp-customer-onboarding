@@ -5,18 +5,17 @@ const KEYCLOAK_URL = process.env.NEXT_PUBLIC_KEYCLOAK_URL || 'http://localhost:3
 const REALM = process.env.NEXT_PUBLIC_KEYCLOAK_REALM || 'idp-platform'
 const CLIENT_ID = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID || 'idp-portal'
 
-// PKCE Helper
-function generatePKCE() {
+// PKCE Helper (Browser-kompatibel)
+async function generatePKCE() {
   const verifier = Array.from(crypto.getRandomValues(new Uint8Array(32)))
     .map(b => b.toString(16).padStart(2, '0'))
     .join('')
   
+  const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))
   const challenge = btoa(
-    Array.from(new Uint8Array(
-      crypto.subtle.digestSync?.('SHA-256', new TextEncoder().encode(verifier)) || []
-    ))
-    .map(b => String.fromCharCode(b))
-    .join('')
+    Array.from(new Uint8Array(hashBuffer))
+      .map(b => String.fromCharCode(b))
+      .join('')
   )
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
@@ -38,11 +37,12 @@ export function getKeycloakUrls() {
 }
 
 // Login URL generieren
-export function getLoginUrl(redirectUri: string): string {
-  const { challenge } = generatePKCE()
+// Login URL generieren (async wegen PKCE)
+export async function getLoginUrl(redirectUri: string): Promise<string> {
+  const { verifier, challenge } = await generatePKCE()
   
   // PKCE Verifier speichern
-  sessionStorage.setItem('pkce_verifier', generatePKCE().verifier)
+  sessionStorage.setItem('pkce_verifier', verifier)
   
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
@@ -52,6 +52,7 @@ export function getLoginUrl(redirectUri: string): string {
     code_challenge: challenge,
     code_challenge_method: 'S256',
   })
+
 
   return `${getKeycloakUrls().authorization}?${params}`
 }

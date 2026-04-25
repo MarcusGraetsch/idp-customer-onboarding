@@ -7,11 +7,7 @@ import { Navigation } from '@/components/navigation'
 import Link from 'next/link'
 import { Users, PlusCircle, Trash2, ArrowRight } from 'lucide-react'
 import useSWR, { mutate } from 'swr'
-
-const fetcher = (url: string) => fetch(url).then((res) => {
-  if (!res.ok) throw new Error('Fehler beim Laden')
-  return res.json()
-})
+import { apiClient, authFetcher } from '@/lib/api-client'
 
 export default function TenantsPage() {
   const { isAuthenticated, isLoading } = useAuth()
@@ -23,19 +19,15 @@ export default function TenantsPage() {
     }
   }, [isLoading, isAuthenticated, router])
 
-  const { data: tenants, error } = useSWR('/api/v1/tenants', fetcher)
+  const { data: tenants, error } = useSWR('/api/v1/tenants', authFetcher)
 
   const handleDelete = async (id: string) => {
     if (!confirm('Tenant wirklich löschen?')) return
 
     try {
-      const res = await fetch(`/api/v1/tenants/${id}`, { method: 'DELETE' })
-      if (res.ok) {
-        mutate('/api/v1/tenants')
-      } else {
-        alert('Löschen fehlgeschlagen')
-      }
-    } catch (err) {
+      await apiClient(`/api/v1/tenants/${id}`, { method: 'DELETE' })
+      mutate('/api/v1/tenants')
+    } catch (err: any) {
       alert('Fehler beim Löschen')
     }
   }

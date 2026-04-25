@@ -98,9 +98,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const login = () => {
+  const login = async () => {
     const redirectUri = window.location.origin + '/login'
-    window.location.href = getLoginUrl(redirectUri)
+    window.location.href = await getLoginUrl(redirectUri)
   }
 
   const logout = () => {

@@ -6,6 +6,7 @@ import { useAuth } from '@/components/auth-provider'
 import { Navigation } from '@/components/navigation'
 import Link from 'next/link'
 import { PlusCircle, ArrowLeft, Check, Loader2 } from 'lucide-react'
+import { apiClient } from '@/lib/api-client'
 
 interface FormData {
   name: string
@@ -46,18 +47,13 @@ export default function NewProjectPage() {
     setError('')
 
     try {
-      const res = await fetch('/api/v1/tenants', {
+      await apiClient('/api/v1/tenants', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       })
 
-      if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.error || 'Erstellung fehlgeschlagen')
-      }
-
-      const tenant = await res.json()
+      const tenants = await apiClient('/api/v1/tenants').then((res) => res.json())
+      const tenant = tenants.find((t: any) => t.name === formData.name)
       setCreatedTenant(tenant)
       setStep(3)
     } catch (err: any) {
