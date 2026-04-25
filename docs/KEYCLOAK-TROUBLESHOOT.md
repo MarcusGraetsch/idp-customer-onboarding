@@ -1,76 +1,99 @@
 # Keycloak Admin Login Problem — Troubleshooting Guide
 
-**Datum:** 2026-04-24  
-**Status:** PENDING — Pod läuft, Admin-Login funktioniert nicht
+**Datum:** 2026-04-24, aktualisiert 2026-04-25
 
 ---
 
-## Problem
+## ✅ GELÖST: Keycloak 26 (Quarkus) installiert
+
+**Keycloak 17 (WildFly)** unterstützte die Env Vars für Admin Credentials NICHT.
+**Keycloak 26 (Quarkus)** unterstützt sie — und es funktioniert!
+
+**Setup:**
+- `quay.io/keycloak/keycloak:26.0`
+- Admin: `admin/admin123`
+- Service: `keycloak-http` NodePort 30081
+- Realm: `idp-platform` mit Clients `idp-api`, `idp-portal`
+
+---
+
+## Problem (Keycloak 17 — OLD)
 
 - Keycloak 17.0.1 Pod startet erfolgreich
 - `add-user-keycloak.sh` sagt "User admin hinzugefügt"
 - Login mit `admin/admin123` → `invalid_grant: user_not_found`
 
----
-
-## Ursache (vermutet)
-
-Keycloak 17.x (legacy mode) bootet mit H2-DB. Die `keycloak-add-user.json` Datei wird beim Boot gelesen, ABER:
-1. Die DB wird frisch erstellt wenn `keycloak.mv.db` nicht existiert
-2. Der Admin-User aus `keycloak-add-user.json` sollte automatisch angelegt werden
-3. Es passiert nicht — warscheinlich weil die JSON-Datei im falschen Format ist oder beim Boot nicht gelesen wird
+**Ursache:** Keycloak 17 (WildFly) liest die `keycloak-add-user.json` NICHT automatisch.
+Das Script erstellt eine JSON-Datei, aber sie wird beim Boot nicht verarbeitet.
 
 ---
 
-## Lösungsweg (ausstehend)
-
-### Schritt 1: Keycloak Management Port prüfen
+## Lösung: Keycloak 26 (Quarkus)
 
 ```bash
-kubectl exec -n keycloak keycloak-0 -- bash -c '
-  curl -s http://127.0.0.1:9990/management
-'
-```
+# Altes Keycloak 17 deinstallieren
+helm uninstall keycloak -n keycloak
+kubectl delete namespace keycloak
 
-Falls Management erreichbar → jboss-cli nutzen.
+# Keycloak 26 deployen
+kubectl create namespace keycloak
 
-### Schritt 2: Neuen Admin via Management Interface anlegen
-
-```bash
-kubectl exec -n keycloak keycloak-0 -- /opt/jboss/keycloak/bin/jboss-cli.sh \
-  --connect --controller=127.0.0.1:9990 \
-  --user=management-admin \
-  --password=<mgmt-passwort> \
-  ":reload"
-```
-
-### Schritt 3: Keycloak ENV VARs setzen (PERSISTENT)
-
-Aktuell sind die ENV VARs für ADMIN gesetzt (KEYCLOAK_ADMIN=admin), aber der User wird nicht angelegt.
-
-Falls Schritt 2 nicht funktioniert → Helm Chart values patchen oder Secrets nutzen.
-
-### Schritt 4: Alternative — Keycloak komplett neu
-
-Falls nichts funktioniert: Kind-Cluster neu erstellen mit korrekten Start-Parametern.
-
+kubectl apply -f - << 'EOF'
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: keycloak
+  namespace: keycloak
+spec:
+  serviceName: keycloak
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    spec:
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.0
+          args: ["start", "--http-enabled=true", "--hostname-strict=false"]
+          env:
+            - name: KEYCLOAK_ADMIN
+              value: "admin"
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              value: "admin123"
+          ports:
+            - name: http
+              containerPort: 8080
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak-http
+  namespace: keycloak
+spec:
+  type: NodePort
+  selector:
+    app: keycloak
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      nodePort: 30081
+EOF
 
-## Checkliste zum Testen
+# Warten bis Ready
+kubectl wait --for=condition=Ready pod/keycloak-0 -n keycloak --timeout=180s
+```
 
-- [ ] Management Port 9990 erreichbar?
-- [ ] kcadm.sh funktioniert mit /auth Endpoint?
-- [ ] User in H2-DB vorhanden?
-- [ ] ENV VARs korrekt beim Boot?
+**Wichtig:** Kein `/auth` Prefix in URLs bei Keycloak 26!
 
 ---
 
 ## Referenzen
 
-- Keycloak 17 Docs: https://www.keycloak.org/docs/17.0/
-- Helm Chart: `https://github.com/codecentric/helm-charts` (keycloak)
-- ENV VARs: `KEYCLOAK_ADMIN`, `KEYCLOAK_ADMIN_PASSWORD`
+- `docs/KEYCLOAK-17-VS-26.md` — Vergleich der Versionen
+- Keycloak 26 Docs: https://www.keycloak.org/docs/26.0/
 
 ---
 
-*Erstellt: 2026-04-24 19:40*
+*Erstellt: 2026-04-24 | Aktualisiert: 2026-04-25 | Status: GELÖST*
