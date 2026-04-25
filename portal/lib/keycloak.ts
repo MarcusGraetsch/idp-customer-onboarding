@@ -3,7 +3,7 @@
 
 const KEYCLOAK_URL = process.env.NEXT_PUBLIC_KEYCLOAK_URL || 'http://localhost:30081'
 const REALM = process.env.NEXT_PUBLIC_KEYCLOAK_REALM || 'idp-platform'
-const CLIENT_ID = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID || 'idp-portal'
+export const CLIENT_ID = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID || 'idp-portal'
 
 // PKCE Helper (Browser-kompatibel)
 async function generatePKCE() {

@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import { getAccessToken, getUserInfo, parseToken, logout as keycloakLogout, getLoginUrl } from '@/lib/keycloak'
+import { getAccessToken, getUserInfo, parseToken, getLoginUrl, getKeycloakUrls, CLIENT_ID } from '@/lib/keycloak'
 
 interface User {
   id: string
@@ -14,7 +14,7 @@ interface AuthContextType {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
-  login: () => void
+  login: () => Promise<void>
   logout: () => void
   getToken: () => Promise<string | null>
 }
@@ -23,7 +23,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   isAuthenticated: false,
   isLoading: true,
-  login: () => {},
+  login: async () => {},
   logout: () => {},
   getToken: async () => null,
 })
@@ -103,10 +103,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     window.location.href = await getLoginUrl(redirectUri)
   }
 
-  const logout = () => {
-    keycloakLogout()
+  const logout = async () => {
+    // Keycloak Logout Endpoint
+    const keycloakUrls = getKeycloakUrls()
+    const idToken = localStorage.getItem('idp_id_token')
+    const redirectUri = window.location.origin
+    
+    // Lokale Tokens löschen
+    localStorage.removeItem('idp_access_token')
+    localStorage.removeItem('idp_refresh_token')
+    localStorage.removeItem('idp_id_token')
+    localStorage.removeItem('idp_expires_at')
     setUser(null)
-    window.location.href = '/'
+    
+    // Keycloak Logout Redirect falls ID Token vorhanden
+    if (idToken) {
+      window.location.href = `${keycloakUrls.logout}?client_id=${CLIENT_ID}&post_logout_redirect_uri=${encodeURIComponent(redirectUri)}&id_token_hint=${idToken}`
+    } else {
+      window.location.href = '/'
+    }
   }
 
   const getToken = async () => {
