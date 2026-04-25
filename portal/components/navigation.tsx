@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/components/auth-provider'
-import { LayoutDashboard, Users, PlusCircle, LogOut, LogIn, User } from 'lucide-react'
+import { LayoutDashboard, Users, PlusCircle, LogOut, LogIn, User, Shield } from 'lucide-react'
 
 export function Navigation() {
   const pathname = usePathname()
@@ -14,6 +14,7 @@ export function Navigation() {
     { href: '/tenants', label: 'Tenants', icon: Users },
     { href: '/new-project', label: 'Neues Projekt', icon: PlusCircle },
     { href: '/profile', label: 'Profil', icon: User },
+    { href: '/admin', label: 'Admin', icon: Shield },
   ]
 
   return (
