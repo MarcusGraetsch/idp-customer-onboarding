@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/components/auth-provider'
-import { LayoutDashboard, Users, PlusCircle, LogOut, LogIn } from 'lucide-react'
+import { LayoutDashboard, Users, PlusCircle, LogOut, LogIn, User } from 'lucide-react'
 
 export function Navigation() {
   const pathname = usePathname()
@@ -13,6 +13,7 @@ export function Navigation() {
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/tenants', label: 'Tenants', icon: Users },
     { href: '/new-project', label: 'Neues Projekt', icon: PlusCircle },
+    { href: '/profile', label: 'Profil', icon: User },
   ]
 
   return (
@@ -49,13 +50,23 @@ export function Navigation() {
           <div className="flex items-center">
             {isAuthenticated ? (
               <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-600">{user?.email}</span>
+                <Link
+                  href="/profile"
+                  className="flex items-center text-sm text-gray-600 hover:text-gray-900"
+                >
+                  <span className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center mr-2">
+                    <span className="text-xs font-medium text-primary-700">
+                      {(user?.email || 'U').charAt(0).toUpperCase()}
+                    </span>
+                  </span>
+                  <span className="hidden md:inline">{user?.email}</span>
+                </Link>
                 <button
                   onClick={logout}
                   className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-gray-600 hover:bg-gray-50"
                 >
                   <LogOut className="h-4 w-4 mr-2" />
-                  Logout
+                  <span className="hidden md:inline">Logout</span>
                 </button>
               </div>
             ) : (
