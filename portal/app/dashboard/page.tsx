@@ -7,28 +7,7 @@ import { Navigation } from '@/components/navigation'
 import Link from 'next/link'
 import { Users, PlusCircle, Shield, Activity } from 'lucide-react'
 import useSWR from 'swr'
-
-// Fetcher mit Auth Header
-const fetcher = async (url: string) => {
-  // Token aus localStorage holen (synchron)
-  const token = localStorage.getItem('idp_access_token')
-  
-  const headers: Record<string, string> = {}
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-
-  const res = await fetch(url, { headers })
-  if (!res.ok) {
-    if (res.status === 401) {
-      // Token ungültig - zur Login Seite
-      window.location.href = '/login'
-      throw new Error('Nicht authentifiziert')
-    }
-    throw new Error('API Fehler')
-  }
-  return res.json()
-}
+import { authFetcher } from '@/lib/api-client'
 
 export default function DashboardPage() {
   const { isAuthenticated, isLoading } = useAuth()
@@ -40,8 +19,8 @@ export default function DashboardPage() {
     }
   }, [isLoading, isAuthenticated, router])
 
-  const { data: tenants, error } = useSWR('/api/v1/tenants', fetcher, {
-    refreshInterval: 30000, // Alle 30s aktualisieren
+  const { data: tenants, error } = useSWR('/api/v1/tenants', authFetcher, {
+    refreshInterval: 30000,
   })
 
   if (isLoading) {
