@@ -339,5 +339,42 @@ Retry → Pipeline läuft weiter
 
 ---
 
+### GitLab Integration (neu 2026-04-28)
+
+**Rationale:** GitLab als Source of Truth + CI/CD ist Standard für GitOps-Plattformen. Self-hosted = Souveränität + Learning für Consulting.
+
+#### Phase A: GitLab als Self-Hosted (vm-basiert)
+
+- [ ] **GitLab VM/Container Setup** — Podman + Quadlet (Ansible Playbook vorhanden in `rook-k8s-lab/infra/ansible/`)
+  - Primär: Podman + Quadlet (systemd-native, rootless)
+  - Fallback: Docker Compose dokumentiert in `docs/GITLAB.md`
+
+- [ ] **GitLab Runner in K8s** — Für CI/CD Jobs
+  - Runner muss im Cluster laufen für Docker-in-Docker
+  - Alternativ: Kaniko für rootless container builds
+
+- [ ] **GitLab CI Pipeline Examples** — Für Plattform-Apps
+  - `.gitlab-ci.yml` für platform-api (Go)
+  - `.gitlab-ci.yml` für portal (Next.js)
+  - Stages: build → test → scan → deploy
+
+- [ ] **ArgoCD ←→ GitLab Integration**
+  - ArgoCD Applications pointed to GitLab repos
+  - ApplicationSet Generator fürMultiple Apps
+
+#### Phase B: GitLab Registry
+
+- [ ] **GitLab Container Registry** — Images zentral speichern
+  - Statt lokaler Registry: `registry.gitlab.platform-dev.idp.local`
+  - Vorteil: Integriert in GitLab Auth
+
+#### Phase C: Fortgeschritten (wenn Kunden GitLab wollen)
+
+- [ ] **GitLab Webhooks → ArgoCD** — Push-based GitOps statt Poll
+- [ ] **GitLab Boards** — Projektmanagement für Plattform-Tickets
+- [ ] **GitLab Merge Request Pipelines** — Code Review mit automatischen Tests
+
+---
+
 *Erstellt: 2026-04-21*
-*Letzte Änderung: Kommentare als GitHub Issue*
+*Letzte Änderung: 2026-04-28 — GitLab Integration hinzugefügt*
