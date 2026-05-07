@@ -154,6 +154,21 @@ That means n8n should use Telegram in a disciplined way:
 
 It should not become a second full task system inside chat.
 
+## Telegram Bot Separation
+
+Important for this environment:
+
+- the main OpenClaw Telegram channel already exists
+- it already has its own bot/runtime behavior
+- Telegram allows only one webhook/update consumer per bot stream in practice
+
+For that reason, n8n Telegram automation should use a separate bot token such as:
+
+- one bot for direct OpenClaw conversation
+- one bot for automation intake, digests, and approvals
+
+That avoids webhook collisions and keeps responsibilities clear.
+
 ## Good Telegram Patterns
 
 ### 1. Telegram as approval channel
@@ -377,6 +392,128 @@ Not best fit:
    - `GET /api/kanban/tasks`
    - optional OpenClaw health/runtime signals
 4. Add a Telegram approval workflow for social draft or publishing actions.
+
+## Current Telegram Workflow Pack
+
+The current repo and n8n instance now contain three Telegram-oriented Phase 1 workflows:
+
+- `Telegram intake -> OpenClaw kanban task`
+- `Daily digest -> Telegram`
+- `OpenClaw task done -> Telegram summary`
+
+They are imported into n8n but intentionally still inactive.
+
+## 1. Telegram intake -> OpenClaw kanban task
+
+### What it is
+
+A Telegram message becomes a real Intake task in OpenClaw.
+
+### What you would do
+
+You message the dedicated automation bot with a simple prefix such as:
+
+- `task: write blog outline about digital labor`
+- `idea: compare Discord and Telegram as command surfaces`
+- `note: remember to revisit watchdog alert noise`
+
+### What the system does
+
+1. Telegram sends the webhook event to n8n.
+2. n8n verifies:
+   - the Telegram webhook secret
+   - the allowed chat ID
+3. n8n parses the message text.
+4. n8n creates a task in the `Rook System` board with `target_status: intake`.
+5. The task is mirrored into the canonical OpenClaw task model.
+6. Telegram sends back an acknowledgement with the created task reference.
+
+### Why this is useful
+
+- fast capture from your real daily channel
+- no need to open the dashboard for every idea
+- the result still lands in the actual OpenClaw workflow, not in a side list
+
+### Current limitation
+
+This should use a separate Telegram automation bot token, not the main OpenClaw direct-chat bot.
+
+## 2. Daily digest -> Telegram
+
+### What it is
+
+A scheduled summary of the current OpenClaw board state sent to Telegram.
+
+### What the system does
+
+1. n8n runs every morning at `08:00` Europe/Berlin.
+2. It fetches board data from `GET /api/kanban/boards`.
+3. It counts active tasks by board and column.
+4. It sends a compact digest message to the configured Telegram chat.
+
+### What you get
+
+A short operational summary such as:
+
+- how many Intake items exist
+- how many Blocked items exist
+- whether boards are quiet or overloaded
+
+### Why this is useful
+
+- gives you a morning control-plane snapshot
+- makes OpenClaw visible without opening the dashboard first
+- helps keep hidden work visible
+
+### How you would use it
+
+You do not trigger this manually most of the time. You simply receive the summary each morning in Telegram.
+
+## 3. OpenClaw task done -> Telegram summary
+
+### What it is
+
+When OpenClaw finishes a task, n8n can send a short completion summary to Telegram.
+
+### What the system does
+
+1. OpenClaw posts a completion event to the n8n webhook.
+2. n8n formats a short message:
+   - task ID
+   - title
+   - agent
+   - short summary
+3. n8n sends that message to Telegram.
+
+### Why this is useful
+
+- completed work becomes visible immediately
+- you get lightweight closure without constantly watching the board
+- it is a good base for later:
+  - done -> publish draft
+  - done -> release note
+  - done -> weekly summary
+
+### Current limitation
+
+This still needs a deliberate OpenClaw-side call to the n8n webhook when tasks reach `done`.
+
+## Which of the Three Matters Most Right Now
+
+Given your current private, non-business stage:
+
+- `Telegram intake -> OpenClaw kanban task` is the most personally useful
+- `Daily digest -> Telegram` is the most operationally stabilizing
+- `OpenClaw task done -> Telegram summary` is the best visibility layer for later maturity
+
+If you only activate one first, activate:
+
+1. Telegram intake
+
+If you activate two:
+
+1. Telegram intake
+2. Daily digest
 
 ## Summary
 

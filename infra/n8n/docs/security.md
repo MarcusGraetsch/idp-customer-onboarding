@@ -66,6 +66,14 @@ Suggested headers:
 - `X-Idempotency-Key: <uuid-or-stable-event-id>`
 - `X-Request-Timestamp: <unix-seconds-or-rfc3339>`
 
+For Telegram webhooks:
+
+- use a dedicated bot token for n8n automation flows
+- set a `secret_token` when registering the Telegram webhook
+- validate `X-Telegram-Bot-Api-Secret-Token` in the webhook flow before accepting input
+
+Do not point the same Telegram bot simultaneously at both the existing OpenClaw bot runtime and n8n webhook intake unless that handoff is intentional.
+
 ## Firewall and Exposure Assumptions
 
 Minimum baseline:

@@ -1,0 +1,379 @@
+{
+  "name": "Telegram intake -> OpenClaw kanban task",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "telegram/intake",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "telegramWebhook",
+      "name": "Telegram Intake Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "telegram-intake"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{$json.headers['x-telegram-bot-api-secret-token'] || ''}}",
+              "rightValue": "={{$env.TELEGRAM_WEBHOOK_SECRET}}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "leftValue": "={{String($json.body.message?.chat?.id || '')}}",
+              "rightValue": "={{String($env.TELEGRAM_ALLOWED_CHAT_ID)}}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "checkTelegramAuth",
+      "name": "Authorized Telegram?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const message = $json.body?.message || {};\nconst rawText = String(message.text || '').trim();\nconst lower = rawText.toLowerCase();\nconst prefixes = ['task:', 'idea:', 'note:'];\nconst matchedPrefix = prefixes.find((prefix) => lower.startsWith(prefix));\nif (!matchedPrefix) {\n  return [{ json: { supported: false, chat_id: message.chat?.id || null, raw_text: rawText } }];\n}\nconst content = rawText.slice(matchedPrefix.length).trim();\nconst firstLine = content.split('\\n')[0]?.trim() || content;\nconst compactTitle = firstLine.length > 90 ? `${firstLine.slice(0, 87)}...` : firstLine;\nconst titlePrefix = matchedPrefix === 'idea:' ? 'Telegram idea' : matchedPrefix === 'note:' ? 'Telegram note' : 'Telegram task';\nconst title = compactTitle ? `${titlePrefix}: ${compactTitle}` : `${titlePrefix}`;\nreturn [{\n  json: {\n    supported: true,\n    chat_id: message.chat?.id || null,\n    source_text: rawText,\n    title,\n    description: content || rawText,\n    intake_brief: content || rawText,\n    priority: matchedPrefix === 'task:' ? 'high' : 'medium',\n    labels: ['telegram', 'automation', matchedPrefix.replace(':', '')],\n    assignee: 'coach',\n    handoff_notes: `Created by n8n from Telegram automation intake. Chat: ${message.chat?.id || 'unknown'}. Message ID: ${message.message_id || 'unknown'}.`,\n    checklist: [\n      { title: 'Clarify the request or idea and decide the right owner', completed: false, position: 0 },\n      { title: 'Refine the task into actionable next steps', completed: false, position: 1 },\n      { title: 'Move the task forward in the normal OpenClaw workflow', completed: false, position: 2 }\n    ]\n  }\n}];"
+      },
+      "id": "parseTelegramMessage",
+      "name": "Parse Telegram Intake",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        760,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{$json.supported}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "supportedMessage",
+      "name": "Supported Intake Format?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1020,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.OPENCLAW_BASE_URL + $env.OPENCLAW_KANBAN_ENDPOINT}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "User-Agent",
+              "value": "n8n-openclaw-telegram-intake/phase1"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "target_board_id",
+              "value": "={{$env.OPENCLAW_DEFAULT_BOARD_ID}}"
+            },
+            {
+              "name": "target_status",
+              "value": "={{$env.OPENCLAW_DEFAULT_TARGET_STATUS}}"
+            },
+            {
+              "name": "title",
+              "value": "={{$json.title}}"
+            },
+            {
+              "name": "description",
+              "value": "={{$json.description}}"
+            },
+            {
+              "name": "intake_brief",
+              "value": "={{$json.intake_brief}}"
+            },
+            {
+              "name": "priority",
+              "value": "={{$json.priority}}"
+            },
+            {
+              "name": "labels",
+              "value": "={{$json.labels}}"
+            },
+            {
+              "name": "assignee",
+              "value": "={{$json.assignee}}"
+            },
+            {
+              "name": "project_id",
+              "value": "={{$env.OPENCLAW_DEFAULT_PROJECT_ID}}"
+            },
+            {
+              "name": "related_repo",
+              "value": "={{$env.OPENCLAW_DEFAULT_RELATED_REPO}}"
+            },
+            {
+              "name": "handoff_notes",
+              "value": "={{$json.handoff_notes}}"
+            },
+            {
+              "name": "checklist",
+              "value": "={{$json.checklist}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "createOpenClawTask",
+      "name": "Create OpenClaw Task",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{$env.TELEGRAM_AUTOMATION_BOT_TOKEN}}/sendMessage",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{$json.chat_id}}"
+            },
+            {
+              "name": "text",
+              "value": "={{'OpenClaw intake task created: ' + $json.title + ' | task ' + ($json.canonical_task_id || $json.sync?.canonicalTaskId || 'pending-sync')}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sendAck",
+      "name": "Send Telegram Ack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{$env.TELEGRAM_AUTOMATION_BOT_TOKEN}}/sendMessage",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{$json.chat_id}}"
+            },
+            {
+              "name": "text",
+              "value": "=Use `task:`, `idea:` or `note:` followed by the content you want OpenClaw to ingest."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sendFormatHint",
+      "name": "Send Format Hint",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"ok\":true}",
+        "options": {}
+      },
+      "id": "webhookOk",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.3,
+      "position": [
+        1780,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"ok\":true,\"ignored\":true}",
+        "options": {}
+      },
+      "id": "ignoredWebhook",
+      "name": "Respond Ignored",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.3,
+      "position": [
+        760,
+        480
+      ]
+    }
+  ],
+  "connections": {
+    "Telegram Intake Webhook": {
+      "main": [
+        [
+          {
+            "node": "Authorized Telegram?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Authorized Telegram?": {
+      "main": [
+        [
+          {
+            "node": "Parse Telegram Intake",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Ignored",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Telegram Intake": {
+      "main": [
+        [
+          {
+            "node": "Supported Intake Format?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supported Intake Format?": {
+      "main": [
+        [
+          {
+            "node": "Create OpenClaw Task",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Format Hint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create OpenClaw Task": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Ack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Telegram Ack": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Format Hint": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "phase": "1",
+    "notes": "Uses a dedicated Telegram automation bot webhook and the live OpenClaw kanban task API."
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "phase1-telegram-intake",
+  "id": "phase1TelegramIntake",
+  "tags": []
+}

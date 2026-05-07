@@ -57,6 +57,13 @@ Edit `.env` and set at minimum:
 - `WEBHOOK_URL`
 - `OPENCLAW_DEFAULT_BOARD_ID`
 
+For Telegram-based workflows, also set:
+
+- `TELEGRAM_AUTOMATION_BOT_TOKEN`
+- `TELEGRAM_ALLOWED_CHAT_ID`
+- `TELEGRAM_DIGEST_CHAT_ID`
+- `TELEGRAM_WEBHOOK_SECRET`
+
 If the VM should run n8n under a different UID/GID mapping, adjust `N8N_UID` and `N8N_GID` in `.env` and make the `.n8n` directory match that ownership.
 
 ## DNS and Reverse Proxy
@@ -151,6 +158,7 @@ curl -X POST \
 - Workflows mount into `/workflows` so imports and exports remain easy to audit in git.
 - `OPENCLAW_BASE_URL` defaults to `http://host.docker.internal:3001` to support a VM-hosted OpenClaw API from inside the container network.
 - The first production-minded GitHub workflow now targets the live OpenClaw kanban API at `/api/kanban/tasks` and defaults to the `Rook System` board Intake column via `OPENCLAW_DEFAULT_BOARD_ID`.
+- Telegram intake should use a dedicated automation bot token. Do not reuse the existing OpenClaw direct-conversation bot unless you intentionally want n8n to take over its webhook/update handling.
 
 ## Next Steps
 
