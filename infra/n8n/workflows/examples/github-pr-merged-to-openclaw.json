@@ -1,0 +1,240 @@
+{
+  "name": "GitHub PR merged -> OpenClaw task",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "github/pr-merged",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "githubWebhook",
+      "name": "GitHub Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        260,
+        300
+      ],
+      "webhookId": "github-pr-merged"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{$json.body.action}}",
+              "rightValue": "closed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "leftValue": "={{$json.body.pull_request.merged}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "ifMerged",
+      "name": "Merged PR?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"source\": \"n8n\",\n  \"event_type\": \"github.pr.merged\",\n  \"priority\": \"normal\",\n  \"target_agent\": \"Rook\",\n  \"title\": \"Create follow-up draft for merged PR #{{$json.body.pull_request.number}}\",\n  \"description\": \"Turn the merged pull request into a tracked OpenClaw task for release notes, documentation, or social draft generation.\",\n  \"metadata\": {\n    \"repository\": \"{{$json.body.repository.full_name}}\",\n    \"pr_number\": {{$json.body.pull_request.number}},\n    \"url\": \"{{$json.body.pull_request.html_url}}\",\n    \"merged_by\": \"{{$json.body.pull_request.merged_by.login}}\",\n    \"merged_at\": \"{{$json.body.pull_request.merged_at}}\",\n    \"title\": \"{{$json.body.pull_request.title}}\"\n  }\n}"
+      },
+      "id": "normalizeTask",
+      "name": "Normalize Task Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        740,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.OPENCLAW_BASE_URL + $env.OPENCLAW_TASK_ENDPOINT}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "User-Agent",
+              "value": "n8n-openclaw-integration/phase1"
+            },
+            {
+              "name": "X-Idempotency-Key",
+              "value": "={{$json.metadata.repository.replace('/', '-') + '-pr-' + $json.metadata.pr_number + '-merged'}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.OPENCLAW_WEBHOOK_SECRET}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "source",
+              "value": "={{$json.source}}"
+            },
+            {
+              "name": "event_type",
+              "value": "={{$json.event_type}}"
+            },
+            {
+              "name": "priority",
+              "value": "={{$json.priority}}"
+            },
+            {
+              "name": "target_agent",
+              "value": "={{$json.target_agent}}"
+            },
+            {
+              "name": "title",
+              "value": "={{$json.title}}"
+            },
+            {
+              "name": "description",
+              "value": "={{$json.description}}"
+            },
+            {
+              "name": "metadata",
+              "value": "={{$json.metadata}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "sendToOpenClaw",
+      "name": "Send to OpenClaw",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        980,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\":\"ignored\",\"reason\":\"event was not a merged pull request\"}",
+        "options": {}
+      },
+      "id": "ignoredResponse",
+      "name": "Ignored Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.3,
+      "position": [
+        760,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "webhookResponse",
+      "name": "Return OpenClaw Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.3,
+      "position": [
+        1220,
+        220
+      ]
+    }
+  ],
+  "connections": {
+    "GitHub Webhook": {
+      "main": [
+        [
+          {
+            "node": "Merged PR?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merged PR?": {
+      "main": [
+        [
+          {
+            "node": "Normalize Task Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ignored Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Task Payload": {
+      "main": [
+        [
+          {
+            "node": "Send to OpenClaw",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to OpenClaw": {
+      "main": [
+        [
+          {
+            "node": "Return OpenClaw Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "phase": "1",
+    "notes": "Placeholder workflow. Requires a real OpenClaw task endpoint."
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "phase1-github-pr-merged",
+  "id": "phase1GithubPrMerged",
+  "tags": []
+}

@@ -1,0 +1,88 @@
+{
+  "name": "OpenClaw task -> social draft",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "openclaw/social-draft",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "openclawWebhook",
+      "name": "OpenClaw Task Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        260,
+        260
+      ],
+      "webhookId": "openclaw-social-draft"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"status\": \"queued_for_editorial_review\",\n  \"task_id\": \"{{$json.body.task_id || ''}}\",\n  \"channel\": \"{{$json.body.channel || 'linkedin'}}\",\n  \"draft\": {\n    \"title\": \"{{$json.body.title || 'Untitled social draft request'}}\",\n    \"summary\": \"{{$json.body.summary || 'TODO: generate draft text in a later iteration'}}\",\n    \"approval_required\": true\n  },\n  \"next_action\": \"TODO: route this payload to Mastodon, LinkedIn, Telegram, or another review queue after approval.\"\n}"
+      },
+      "id": "buildDraft",
+      "name": "Build Draft Placeholder",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        520,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "returnDraft",
+      "name": "Return Draft Payload",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.3,
+      "position": [
+        780,
+        260
+      ]
+    }
+  ],
+  "connections": {
+    "OpenClaw Task Webhook": {
+      "main": [
+        [
+          {
+            "node": "Build Draft Placeholder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Draft Placeholder": {
+      "main": [
+        [
+          {
+            "node": "Return Draft Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "phase": "1",
+    "notes": "Placeholder approval-gated publishing flow."
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "phase1-social-draft",
+  "id": "phase1SocialDraft",
+  "tags": []
+}

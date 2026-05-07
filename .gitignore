@@ -1,1 +1,5 @@
 node_modules/
+infra/n8n/.env
+infra/n8n/backups/
+infra/n8n/.n8n/
+infra/n8n/postgres-data/
