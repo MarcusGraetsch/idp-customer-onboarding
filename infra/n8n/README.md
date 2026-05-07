@@ -65,6 +65,8 @@ Marcus will configure Cloudflare DNS manually. After the DNS record exists, inst
 
 For the initial Let's Encrypt HTTP challenge, keep the Cloudflare record on `DNS only` unless you intentionally use a DNS-01 validation flow with a Cloudflare API token. If the record stays proxied too early, certificate issuance may fail with ACME challenge `404` responses.
 
+If the hostname is routed through an existing Cloudflare Tunnel instead of directly to the VM, prefer adding `n8n.working-notes.org` to the tunnel ingress configuration and let Cloudflare terminate HTTPS at the edge. In that setup, local `certbot --nginx` is not the primary path.
+
 Current internal target:
 
 - n8n container: `127.0.0.1:${N8N_PORT:-5678}` on the VM
