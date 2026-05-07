@@ -191,7 +191,7 @@
           "parameters": [
             {
               "name": "chat_id",
-              "value": "={{$json.chat_id}}"
+              "value": "={{$('Parse Telegram Intake').item.json.chat_id}}"
             },
             {
               "name": "text",
