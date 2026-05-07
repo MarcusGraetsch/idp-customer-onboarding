@@ -16,6 +16,7 @@ Set these in `infra/n8n/.env` and never commit the file:
 - `N8N_HOST`
 - `N8N_PROTOCOL`
 - `WEBHOOK_URL`
+- `N8N_BLOCK_ENV_ACCESS_IN_NODE`
 
 Recommendations:
 
@@ -73,6 +74,20 @@ For Telegram webhooks:
 - validate `X-Telegram-Bot-Api-Secret-Token` in the webhook flow before accepting input
 
 Do not point the same Telegram bot simultaneously at both the existing OpenClaw bot runtime and n8n webhook intake unless that handoff is intentional.
+
+## Node Environment Access
+
+The Phase 1 example workflows intentionally read selected environment variables at runtime for:
+
+- webhook secret verification
+- allowed Telegram chat IDs
+- OpenClaw target URLs and routing defaults
+
+That requires:
+
+- `N8N_BLOCK_ENV_ACCESS_IN_NODE=false`
+
+This is an explicit tradeoff for the current operator-owned VM deployment. UI access is already protected, and the environment-driven contract keeps Docker Compose and a later Kubernetes secret model aligned. In a later hardening phase, move these values into n8n credentials or a tighter secret-injection pattern and re-enable node env blocking.
 
 ## Firewall and Exposure Assumptions
 
