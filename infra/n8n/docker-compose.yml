@@ -57,6 +57,11 @@ services:
       OPENCLAW_BASE_URL: ${OPENCLAW_BASE_URL:-http://host.docker.internal:3001}
       OPENCLAW_WEBHOOK_SECRET: ${OPENCLAW_WEBHOOK_SECRET:?set in .env}
       OPENCLAW_TASK_ENDPOINT: ${OPENCLAW_TASK_ENDPOINT:-/api/tasks}
+      OPENCLAW_KANBAN_ENDPOINT: ${OPENCLAW_KANBAN_ENDPOINT:-/api/kanban/tasks}
+      OPENCLAW_DEFAULT_BOARD_ID: ${OPENCLAW_DEFAULT_BOARD_ID:-995cdcf8-3eda-4bb8-8ce2-c85a10791d95}
+      OPENCLAW_DEFAULT_PROJECT_ID: ${OPENCLAW_DEFAULT_PROJECT_ID:-rook-workspace}
+      OPENCLAW_DEFAULT_RELATED_REPO: ${OPENCLAW_DEFAULT_RELATED_REPO:-MarcusGraetsch/idp-customer-onboarding}
+      OPENCLAW_DEFAULT_TARGET_STATUS: ${OPENCLAW_DEFAULT_TARGET_STATUS:-intake}
     volumes:
       - ./.n8n:/home/node/.n8n
       - ./workflows:/workflows

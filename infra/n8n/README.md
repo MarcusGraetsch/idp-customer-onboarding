@@ -17,7 +17,6 @@ Implemented now:
 
 Placeholders by design:
 
-- Real OpenClaw task endpoint implementation
 - Real Cloudflare DNS changes
 - Production secret distribution
 - Kubernetes manifests or Helm chart
@@ -56,6 +55,7 @@ Edit `.env` and set at minimum:
 - `N8N_HOST`
 - `N8N_PROTOCOL`
 - `WEBHOOK_URL`
+- `OPENCLAW_DEFAULT_BOARD_ID`
 
 If the VM should run n8n under a different UID/GID mapping, adjust `N8N_UID` and `N8N_GID` in `.env` and make the `.n8n` directory match that ownership.
 
@@ -150,6 +150,7 @@ curl -X POST \
 - The n8n editor is protected by basic auth, but webhook security is separate. See [docs/security.md](docs/security.md).
 - Workflows mount into `/workflows` so imports and exports remain easy to audit in git.
 - `OPENCLAW_BASE_URL` defaults to `http://host.docker.internal:3001` to support a VM-hosted OpenClaw API from inside the container network.
+- The first production-minded GitHub workflow now targets the live OpenClaw kanban API at `/api/kanban/tasks` and defaults to the `Rook System` board Intake column via `OPENCLAW_DEFAULT_BOARD_ID`.
 
 ## Next Steps
 

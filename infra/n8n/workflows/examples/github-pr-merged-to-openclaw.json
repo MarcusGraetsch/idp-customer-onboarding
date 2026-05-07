@@ -1,5 +1,5 @@
 {
-  "name": "GitHub PR merged -> OpenClaw task",
+  "name": "GitHub PR merged -> OpenClaw kanban task",
   "nodes": [
     {
       "parameters": {
@@ -59,10 +59,10 @@
     {
       "parameters": {
         "mode": "raw",
-        "jsonOutput": "={\n  \"source\": \"n8n\",\n  \"event_type\": \"github.pr.merged\",\n  \"priority\": \"normal\",\n  \"target_agent\": \"Rook\",\n  \"title\": \"Create follow-up draft for merged PR #{{$json.body.pull_request.number}}\",\n  \"description\": \"Turn the merged pull request into a tracked OpenClaw task for release notes, documentation, or social draft generation.\",\n  \"metadata\": {\n    \"repository\": \"{{$json.body.repository.full_name}}\",\n    \"pr_number\": {{$json.body.pull_request.number}},\n    \"url\": \"{{$json.body.pull_request.html_url}}\",\n    \"merged_by\": \"{{$json.body.pull_request.merged_by.login}}\",\n    \"merged_at\": \"{{$json.body.pull_request.merged_at}}\",\n    \"title\": \"{{$json.body.pull_request.title}}\"\n  }\n}"
+        "jsonOutput": "={\n  \"title\": \"Create follow-up draft for merged PR #{{$json.body.pull_request.number}}\",\n  \"description\": \"Turn the merged pull request into a tracked OpenClaw task for release notes, documentation, or social draft generation.\",\n  \"intake_brief\": \"Merged PR #{{$json.body.pull_request.number}} in {{$json.body.repository.full_name}} needs follow-up automation.\",\n  \"priority\": \"medium\",\n  \"labels\": [\"automation\", \"github\", \"pull-request\", \"n8n\"],\n  \"assignee\": \"coach\",\n  \"handoff_notes\": \"Created by n8n from GitHub webhook delivery {{$json.headers['x-github-delivery'] || 'unknown-delivery'}}. PR URL: {{$json.body.pull_request.html_url}}. Merged by {{$json.body.pull_request.merged_by.login}} at {{$json.body.pull_request.merged_at}}.\",\n  \"checklist\": [\n    {\n      \"title\": \"Review the merged PR context and decide the required follow-up artifact\",\n      \"completed\": false,\n      \"position\": 0\n    },\n    {\n      \"title\": \"Produce the requested draft, documentation, or release-note output\",\n      \"completed\": false,\n      \"position\": 1\n    },\n    {\n      \"title\": \"Record links and outcomes back into the task\",\n      \"completed\": false,\n      \"position\": 2\n    }\n  ],\n  \"metadata\": {\n    \"repository\": \"{{$json.body.repository.full_name}}\",\n    \"pr_number\": {{$json.body.pull_request.number}},\n    \"url\": \"{{$json.body.pull_request.html_url}}\",\n    \"merged_by\": \"{{$json.body.pull_request.merged_by.login}}\",\n    \"merged_at\": \"{{$json.body.pull_request.merged_at}}\",\n    \"title\": \"{{$json.body.pull_request.title}}\",\n    \"delivery_id\": \"{{$json.headers['x-github-delivery'] || ''}}\"\n  }\n}"
       },
       "id": "normalizeTask",
-      "name": "Normalize Task Payload",
+      "name": "Normalize Kanban Payload",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
@@ -73,7 +73,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{$env.OPENCLAW_BASE_URL + $env.OPENCLAW_TASK_ENDPOINT}}",
+        "url": "={{$env.OPENCLAW_BASE_URL + $env.OPENCLAW_KANBAN_ENDPOINT}}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -100,20 +100,12 @@
         "bodyParameters": {
           "parameters": [
             {
-              "name": "source",
-              "value": "={{$json.source}}"
+              "name": "target_board_id",
+              "value": "={{$env.OPENCLAW_DEFAULT_BOARD_ID}}"
             },
             {
-              "name": "event_type",
-              "value": "={{$json.event_type}}"
-            },
-            {
-              "name": "priority",
-              "value": "={{$json.priority}}"
-            },
-            {
-              "name": "target_agent",
-              "value": "={{$json.target_agent}}"
+              "name": "target_status",
+              "value": "={{$env.OPENCLAW_DEFAULT_TARGET_STATUS}}"
             },
             {
               "name": "title",
@@ -124,15 +116,43 @@
               "value": "={{$json.description}}"
             },
             {
-              "name": "metadata",
-              "value": "={{$json.metadata}}"
+              "name": "intake_brief",
+              "value": "={{$json.intake_brief}}"
+            },
+            {
+              "name": "priority",
+              "value": "={{$json.priority}}"
+            },
+            {
+              "name": "labels",
+              "value": "={{$json.labels}}"
+            },
+            {
+              "name": "assignee",
+              "value": "={{$json.assignee}}"
+            },
+            {
+              "name": "project_id",
+              "value": "={{$env.OPENCLAW_DEFAULT_PROJECT_ID}}"
+            },
+            {
+              "name": "related_repo",
+              "value": "={{$env.OPENCLAW_DEFAULT_RELATED_REPO}}"
+            },
+            {
+              "name": "handoff_notes",
+              "value": "={{$json.handoff_notes}}"
+            },
+            {
+              "name": "checklist",
+              "value": "={{$json.checklist}}"
             }
           ]
         },
         "options": {}
       },
       "id": "sendToOpenClaw",
-      "name": "Send to OpenClaw",
+      "name": "Create Kanban Task",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -187,7 +207,7 @@
       "main": [
         [
           {
-            "node": "Normalize Task Payload",
+            "node": "Normalize Kanban Payload",
             "type": "main",
             "index": 0
           }
@@ -201,18 +221,18 @@
         ]
       ]
     },
-    "Normalize Task Payload": {
+    "Normalize Kanban Payload": {
       "main": [
         [
           {
-            "node": "Send to OpenClaw",
+            "node": "Create Kanban Task",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send to OpenClaw": {
+    "Create Kanban Task": {
       "main": [
         [
           {
@@ -228,7 +248,7 @@
   "meta": {
     "templateCredsSetupCompleted": false,
     "phase": "1",
-    "notes": "Placeholder workflow. Requires a real OpenClaw task endpoint."
+    "notes": "Production-minded phase-1 workflow targeting the live OpenClaw kanban API on the Marcus VM."
   },
   "active": false,
   "settings": {

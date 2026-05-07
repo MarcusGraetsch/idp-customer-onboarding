@@ -10,6 +10,12 @@ This document defines the initial stable JSON contract between n8n and OpenClaw.
 - n8n may run beside it in Docker Compose.
 - The exact receiving endpoints may not exist yet.
 
+Current live bridge on the Marcus VM:
+
+- `POST /api/kanban/tasks`
+- implemented by the `rook-dashboard` service on port `3001`
+- can create a kanban task, sync it into the canonical task model, and optionally participate in the existing workflow pipeline
+
 TODO:
 
 - Confirm the canonical OpenClaw task creation endpoint in the live platform.
@@ -21,6 +27,10 @@ TODO:
 ### Create task in OpenClaw
 
 `POST /api/tasks`
+
+### Current Phase 1 live task-creation bridge
+
+`POST /api/kanban/tasks`
 
 ### Update task in OpenClaw
 
@@ -39,6 +49,35 @@ Candidate Phase 2 endpoints:
 - `POST /api/n8n/workflows/:workflow_id/activate`
 
 Those workflow-management endpoints are placeholders for later OpenClaw orchestration and are not implemented by this module.
+
+## Current Phase 1 Live Payload for `POST /api/kanban/tasks`
+
+```json
+{
+  "target_board_id": "995cdcf8-3eda-4bb8-8ce2-c85a10791d95",
+  "target_status": "intake",
+  "title": "Create follow-up draft for merged PR #123",
+  "description": "Turn the merged pull request into a tracked OpenClaw task for release notes, documentation, or social draft generation.",
+  "intake_brief": "Merged PR #123 requires follow-up automation.",
+  "priority": "medium",
+  "labels": ["automation", "github", "pull-request", "n8n"],
+  "assignee": "coach",
+  "project_id": "rook-workspace",
+  "related_repo": "MarcusGraetsch/idp-customer-onboarding",
+  "handoff_notes": "Created by n8n from a merged GitHub PR event.",
+  "checklist": [
+    { "title": "Review the merged PR context and decide the required follow-up artifact", "completed": false, "position": 0 },
+    { "title": "Produce the requested draft, documentation, or release-note output", "completed": false, "position": 1 },
+    { "title": "Record links and outcomes back into the task", "completed": false, "position": 2 }
+  ]
+}
+```
+
+Notes:
+
+- `target_board_id` plus `target_status` is preferred over a raw `column_id` because it survives column ID churn better.
+- For `target_status: intake`, the current OpenClaw API defaults the assignee to `coach` if none is provided.
+- The response includes the kanban task row plus `sync` metadata for the canonical task.
 
 ## Required Request Headers
 
