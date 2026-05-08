@@ -18,7 +18,7 @@ export PGHOST=localhost
 export PGPORT=5432
 export PGDATABASE=platform
 export PGUSER=platform-admin
-export PGPASSWORD=plat0form-dev-2026!
+export PGPASSWORD=****SET-LOCALLY****
 
 node src/index.js
 ```
@@ -35,11 +35,11 @@ helm install postgresql bitnami/postgresql -n platform-dev \
   --set persistence.size=1Gi \
   --set auth.database=platform \
   --set auth.username=platform-admin \
-  --set auth.password=plat0form-dev-2026!
+  --set auth.password=****SET-LOCALLY****
 
 # Schema erstellen (SQL weiter unten)
 kubectl exec -n platform-dev postgresql-0 -- bash -c \
-  "PGPASSWORD=plat0form-dev-2026! psql -U platform-admin -d platform -f /tmp/init.sql"
+  "PGPASSWORD=****SET-LOCALLY**** psql -U platform-admin -d platform -f /tmp/init.sql"
 
 # API deployen
 kubectl apply -f k8s/deployment.yaml
@@ -162,7 +162,7 @@ curl http://localhost:3000/health
 
 ## Credentials
 
-- **PostgreSQL:** `platform-admin / plat0form-dev-2026!`
+- **PostgreSQL:** retrieve from your local bootstrap or secret source, do not track literal values
 - **Namespace:** `platform-dev`
 - **Ingress:** `api.platform-dev.idp.local` (von VM aus über `localhost` via Ingress)
 
